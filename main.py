@@ -66,7 +66,7 @@ def musteri_guncelle(conn):
     conn.commit()
     print("Müşteri güncellendi.")
 
-def excel_aktar(conn):
+def excel_aktar_tumu(conn):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Müşteriler"
@@ -75,7 +75,30 @@ def excel_aktar(conn):
         ws.append(row)
     dosya_adi = "musteriler.xlsx"
     wb.save(dosya_adi)
-    print(f"Excel'e aktarıldı: {dosya_adi}")
+    print(f"Tüm müşteriler Excel'e aktarıldı: {dosya_adi}")
+
+def excel_aktar_tarih_araligi(conn):
+    baslangic = input("Başlangıç tarihi (YYYY-MM-DD): ")
+    bitis = input("Bitiş tarihi (YYYY-MM-DD): ")
+    try:
+        datetime.strptime(baslangic, "%Y-%m-%d")
+        datetime.strptime(bitis, "%Y-%m-%d")
+    except ValueError:
+        print("Tarih formatı hatalı.")
+        return
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Müşteriler"
+    ws.append(["ID", "Ad Soyad", "Telefon", "E-posta", "Adres", "Kayıt Zamanı"])
+    query = """SELECT * FROM musteriler 
+               WHERE DATE(kayit_zamani) BETWEEN ? AND ?"""
+    for row in conn.execute(query, (baslangic, bitis)):
+        ws.append(row)
+
+    dosya_adi = f"musteriler_{baslangic}_to_{bitis}.xlsx"
+    wb.save(dosya_adi)
+    print(f"{baslangic} - {bitis} arası müşteriler Excel'e aktarıldı: {dosya_adi}")
 
 def excel_ice_aktar(conn):
     dosya_adi = input("İçe aktarılacak Excel dosya adı: ")
@@ -87,7 +110,6 @@ def excel_ice_aktar(conn):
     satir_sayisi = 0
     atlanan = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        # row: (ID, ad_soyad, telefon, email, adres, kayit_zamani)
         ad = row[1]
         tel = row[2]
         email = row[3]
@@ -111,9 +133,10 @@ def menu():
 3) Ara
 4) Sil
 5) Güncelle
-6) Excel'e Aktar
-7) Excel'den İçe Aktar
-8) Çıkış
+6) Excel'e Aktar (Tüm)
+7) Excel'e Aktar (Tarih Aralığı)
+8) Excel'den İçe Aktar
+9) Çıkış
 """)
         secim = input("Seçim: ")
         if secim == "1": musteri_ekle(conn)
@@ -121,9 +144,10 @@ def menu():
         elif secim == "3": musteri_ara(conn)
         elif secim == "4": musteri_sil(conn)
         elif secim == "5": musteri_guncelle(conn)
-        elif secim == "6": excel_aktar(conn)
-        elif secim == "7": excel_ice_aktar(conn)
-        elif secim == "8": break
+        elif secim == "6": excel_aktar_tumu(conn)
+        elif secim == "7": excel_aktar_tarih_araligi(conn)
+        elif secim == "8": excel_ice_aktar(conn)
+        elif secim == "9": break
         else: print("Hatalı seçim.")
 
 if __name__ == "__main__":
