@@ -1,6 +1,7 @@
 import sqlite3
 import openpyxl
 import os
+import shutil
 from datetime import datetime
 
 DB_FILE = "musteri_kayit.db"
@@ -38,7 +39,7 @@ def musteri_ekle(conn):
         print("Bu müşteri zaten kayıtlı!")
 
 def musterileri_listele(conn):
-    for row in conn.execute("SELECT * FROM musteriler"):
+    for row in conn.execute("SELECT * FROM musteriler ORDER BY id"):
         print(row)
 
 def musteri_ara(conn):
@@ -71,7 +72,7 @@ def excel_aktar_tumu(conn):
     ws = wb.active
     ws.title = "Müşteriler"
     ws.append(["ID", "Ad Soyad", "Telefon", "E-posta", "Adres", "Kayıt Zamanı"])
-    for row in conn.execute("SELECT * FROM musteriler"):
+    for row in conn.execute("SELECT * FROM musteriler ORDER BY id"):
         ws.append(row)
     dosya_adi = "musteriler.xlsx"
     wb.save(dosya_adi)
@@ -92,7 +93,8 @@ def excel_aktar_tarih_araligi(conn):
     ws.title = "Müşteriler"
     ws.append(["ID", "Ad Soyad", "Telefon", "E-posta", "Adres", "Kayıt Zamanı"])
     query = """SELECT * FROM musteriler 
-               WHERE DATE(kayit_zamani) BETWEEN ? AND ?"""
+               WHERE DATE(kayit_zamani) BETWEEN ? AND ?
+               ORDER BY kayit_zamani"""
     for row in conn.execute(query, (baslangic, bitis)):
         ws.append(row)
 
@@ -124,6 +126,21 @@ def excel_ice_aktar(conn):
     conn.commit()
     print(f"{satir_sayisi} müşteri içe aktarıldı, {atlanan} kayıt atlandı (mükerrer).")
 
+def son_eklenenler(conn):
+    try:
+        adet = int(input("Kaç son kayıt listelensin?: "))
+    except ValueError:
+        print("Geçersiz sayı!")
+        return
+    for row in conn.execute("SELECT * FROM musteriler ORDER BY kayit_zamani DESC LIMIT ?", (adet,)):
+        print(row)
+
+def otomatik_yedekle():
+    if os.path.exists(DB_FILE):
+        backup_name = f"musteri_kayit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+        shutil.copy(DB_FILE, backup_name)
+        print(f"Veritabanı yedeklendi: {backup_name}")
+
 def menu():
     conn = db_baglanti()
     while True:
@@ -136,7 +153,8 @@ def menu():
 6) Excel'e Aktar (Tüm)
 7) Excel'e Aktar (Tarih Aralığı)
 8) Excel'den İçe Aktar
-9) Çıkış
+9) Son Eklenen Müşteriler
+0) Çıkış
 """)
         secim = input("Seçim: ")
         if secim == "1": musteri_ekle(conn)
@@ -147,8 +165,12 @@ def menu():
         elif secim == "6": excel_aktar_tumu(conn)
         elif secim == "7": excel_aktar_tarih_araligi(conn)
         elif secim == "8": excel_ice_aktar(conn)
-        elif secim == "9": break
-        else: print("Hatalı seçim.")
+        elif secim == "9": son_eklenenler(conn)
+        elif secim == "0":
+            otomatik_yedekle()
+            break
+        else:
+            print("Hatalı seçim.")
 
 if __name__ == "__main__":
     menu()
